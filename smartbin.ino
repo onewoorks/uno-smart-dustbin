@@ -1,4 +1,5 @@
 #include <Servo.h>
+// #include <Wire.h> 
 #include <LiquidCrystal_I2C.h>
 
 const int TRIG_PIN_1 	= 2;  // Trigger pin for hand detection ultrasonic sensor
@@ -15,7 +16,7 @@ String lcdLine2 = "";
 
 // Distance thresholds
 const int HAND_DISTANCE = 20;  // Distance threshold for hand detection (20 cm)
-const int FULL_DISTANCE = 10;  // Distance threshold for bin full detection (10 cm)
+const int FULL_DISTANCE = 5;  // Distance threshold for bin full detection (10 cm)
 
 Servo servoMotor;
 LiquidCrystal_I2C lcd(0x27, 16, 2);  // LCD object with address 0x27, 16 columns, and 2 rows
@@ -42,20 +43,45 @@ void loop()
 {
   int handDistance 	= getDistance(TRIG_PIN_1, ECHO_PIN_1);
   int binDistance 	= getDistance(TRIG_PIN_2, ECHO_PIN_2);
-  
-  if(handDistance <= HAND_DISTANCE){
-    openAndCloseLid(handDistance);
+
+  Serial.println("Sensor Atas (hand) : "  + (String) handDistance + "cm");
+  Serial.println("Sensor Bawah (bin) : "  + (String) binDistance + "cm");
+  Serial.println("----------------------------------------------------");
+
+  if(handDistance <= HAND_DISTANCE && handDistance > 0){
+    tone(BUZZER_PIN,1000);
+    delay(500);
+    noTone(BUZZER_PIN);
+    Serial.println("Lid Opening...");
+    lcdScreen("Smart Bin!","Lid Opening...");
+    servoMotor.write(150);
+    delay(5000);
+    tone(BUZZER_PIN,1000);
+    delay(500);
+    noTone(BUZZER_PIN);
+    Serial.println("Lid Closing...");
+    lcdScreen("Smart Bin!","Lid Closing...");
+    for (int angle = 150; angle > 5; angle -= 1){
+      servoMotor.write(angle);
+      delay(50);
+    }
+    servoMotor.write(5);
+    delay(2000);
+    lcdScreen("Welcome!","");
   }
-  
-  if(binDistance <= FULL_DISTANCE){
-    fullBin();
+
+  if(binDistance <= FULL_DISTANCE && binDistance > 0){
+    Serial.println("Bin Full");
+    tone(BUZZER_PIN, 1000);
+  	lcdScreen("Warning!!!","Bin is FULL");
   } 
   
   if(binDistance > FULL_DISTANCE){
-    emptyBin();
+    lcdScreen("Welcome!","");
+    noTone(BUZZER_PIN);	
   }
   
-  delay(500);
+  delay(1000);
 }
 
 int getDistance(int trigPin, int echoPin) {
@@ -69,28 +95,7 @@ int getDistance(int trigPin, int echoPin) {
   return distance;
 }
 
-void fullBin(){
-    tone(BUZZER_PIN, 1000);
-  	lcdScreen("Warning!!!","Bin is FULL");
-}
-
-void emptyBin(){
-  	lcdScreen("Welcome!","");
-  	noTone(BUZZER_PIN);	
-}
-
-void openAndCloseLid(int distance){
-  lcdScreen("Smart Bin!","Lid Opening...");
-  servoMotor.write(130);
-  delay(5500);
-  lcdScreen("Smart Bin!","Lid Closing...");
-  servoMotor.write(0);
-  delay(2000);
-  lcdScreen("Welcome!","");
-}
-
 void lcdScreen(String firstLine, String secondLine){
-  
   if(lcdLine1 != firstLine || lcdLine2 != secondLine){
     lcd.clear();
     lcd.setCursor(0, 0);
